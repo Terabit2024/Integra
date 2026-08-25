@@ -19,11 +19,14 @@ jobs:
       - name: Download AL compiler (VS Code AL extension)
         shell: pwsh
         run: |
-          $vsixUrl = "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-dynamics-smb/vsextensions/al/latest/vspackage"
+          $vsixUrl = "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-dynamics-smb/vsextensions/al/latest/vspackage?targetPlatform=win32-x64"
           Invoke-WebRequest -Uri $vsixUrl -OutFile al.vsix -MaximumRetryCount 3 -RetryIntervalSec 10
           Expand-Archive -Path al.vsix -DestinationPath alext -Force
-          $alc = Get-ChildItem "alext\extension\bin\win32\alc.exe" -Recurse | Select-Object -First 1
-          if (-not $alc) { throw "alc.exe nuk u gjet ne VSIX" }
+          $alc = Get-ChildItem alext -Recurse -Filter alc.exe | Select-Object -First 1
+          if (-not $alc) {
+              Get-ChildItem alext -Recurse -Directory | Select-Object -ExpandProperty FullName
+              throw "alc.exe nuk u gjet ne VSIX"
+          }
           "ALC_PATH=$($alc.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           & $alc.FullName /? | Select-Object -First 2
 

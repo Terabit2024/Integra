@@ -52,7 +52,7 @@
         {
             Caption = 'Item Exists';
             FieldClass = FlowField;
-            CalcFormula = exist(Item where("No." = field("Item No.")));
+            CalcFormula = exist(Item where("No. 2" = field("Item No.")));
             Editable = false;
         }
     }

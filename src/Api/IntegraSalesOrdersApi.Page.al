@@ -92,6 +92,10 @@
                 {
                     Caption = 'Salesperson Code';
                 }
+                field(salesperson; Rec.Salesperson)
+                {
+                    Caption = 'Salesperson';
+                }
                 field(status; Rec.Status)
                 {
                     Caption = 'Status';

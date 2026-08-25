@@ -118,6 +118,26 @@
                     Page.Run(Page::"Integra SO Inbox Lines", InboxLine);
                 end;
             }
+            action(DeleteEntry)
+            {
+                Caption = 'Delete Entry';
+                ApplicationArea = All;
+                Image = Delete;
+                ToolTip = 'Delete the selected inbox entries together with their lines. Entries that are already processed cannot be deleted.';
+
+                trigger OnAction()
+                var
+                    Inbox: Record "Integra Sales Order Inbox";
+                begin
+                    CurrPage.SetSelectionFilter(Inbox);
+                    if Inbox.IsEmpty() then
+                        exit;
+                    if not Confirm(DeleteConfirmQst, false, Inbox.Count()) then
+                        exit;
+                    Inbox.DeleteAll(true);
+                    CurrPage.Update(false);
+                end;
+            }
             action(OpenSalesOrder)
             {
                 Caption = 'Open Sales Order';
@@ -142,6 +162,7 @@
                 actionref(ProcessSelected_Promoted; ProcessSelected) { }
                 actionref(ProcessAllPending_Promoted; ProcessAllPending) { }
                 actionref(ShowLines_Promoted; ShowLines) { }
+                actionref(DeleteEntry_Promoted; DeleteEntry) { }
                 actionref(OpenSalesOrder_Promoted; OpenSalesOrder) { }
             }
         }
@@ -170,6 +191,7 @@
         StatusStyle: Text;
         ProcessedMsg: Label 'Sales Order %1 was created.', Comment = '%1 = sales order no.';
         ProcessFailedMsg: Label 'Processing failed: %1', Comment = '%1 = error message';
+        DeleteConfirmQst: Label 'Delete %1 selected inbox entr(y/ies) together with their lines?', Comment = '%1 = number of selected entries';
         MissingItemsNotificationMsg: Label '%1 inbox order(s) could not be processed because of errors (e.g. items that do not exist in the system). Check the entries with status Error.', Comment = '%1 = number of error entries';
         ShowErrorsLbl: Label 'Show errors';
 

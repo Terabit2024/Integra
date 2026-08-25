@@ -115,6 +115,18 @@
         CheckDuplicateExternalDocNo();
     end;
 
+    trigger OnModify()
+    var
+        PrevInbox: Record "Integra Sales Order Inbox";
+    begin
+        if not PrevInbox.Get(Rec."Entry No.") then
+            exit;
+        if PrevInbox.Status = PrevInbox.Status::Processed then
+            Error(CannotEditProcessedErr, Rec."Entry No.", PrevInbox."Created Sales Order No.");
+        if Rec."External Document No." <> PrevInbox."External Document No." then
+            CheckDuplicateExternalDocNo();
+    end;
+
     trigger OnDelete()
     var
         InboxLine: Record "Integra Sales Order Inbox Line";
@@ -128,6 +140,7 @@
 
     var
         CannotDeleteProcessedErr: Label 'Inbox entry %1 cannot be deleted because it is already processed (Sales Order %2). Processed entries are kept as history for the duplicate check on External Document No.', Comment = '%1 = entry no., %2 = sales order no.';
+        CannotEditProcessedErr: Label 'Inbox entry %1 cannot be edited because it is already processed (Sales Order %2).', Comment = '%1 = entry no., %2 = sales order no.';
         DuplicateExtDocInboxErr: Label 'An inbox order with External Document No. %1 already exists (Entry No. %2, Status %3).', Comment = '%1 = external document no., %2 = entry no., %3 = status';
         DuplicateExtDocOrderErr: Label 'A sales order with External Document No. %1 already exists (Order %2).', Comment = '%1 = external document no., %2 = sales order no.';
 

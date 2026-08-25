@@ -19,7 +19,8 @@ jobs:
       - name: Download AL compiler (VS Code AL extension)
         shell: pwsh
         run: |
-          $vsixUrl = "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-dynamics-smb/vsextensions/al/latest/vspackage?targetPlatform=win32-x64"
+          # Version i pin-uar (i njejti qe perdoret ne zhvillim lokal) - paketa universale me bin/win32
+          $vsixUrl = "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-dynamics-smb/vsextensions/al/17.0.2273547/vspackage"
           Invoke-WebRequest -Uri $vsixUrl -OutFile al.vsix -MaximumRetryCount 3 -RetryIntervalSec 10
           Expand-Archive -Path al.vsix -DestinationPath alext -Force
           $alc = Get-ChildItem alext -Recurse -Filter alc.exe | Select-Object -First 1

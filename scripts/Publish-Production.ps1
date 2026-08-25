@@ -73,9 +73,14 @@ else { $company = $companies | Select-Object -First 1 }
 if (-not $company) { throw "Kompania nuk u gjet. Te disponueshme: $($companies.name -join ', ')" }
 Write-Host "Kompania: $($company.name)"
 
-# 3. Krijo extension upload dhe ngarko permbajtjen (kjo starton deployment-in)
-$upload = Invoke-RestMethod -Method Post -Uri "$autoApi/companies($($company.id))/extensionUpload" `
-    -Headers $headers -ContentType "application/json" -Body '{"schedule": "Current Version"}'
+# 3. Merr (ose krijo) regjistrin extension upload dhe ngarko permbajtjen (kjo starton deployment-in)
+$existing = (Invoke-RestMethod -Uri "$autoApi/companies($($company.id))/extensionUpload" -Headers $headers).value
+if ($existing) {
+    $upload = $existing[0]
+} else {
+    $upload = Invoke-RestMethod -Method Post -Uri "$autoApi/companies($($company.id))/extensionUpload" `
+        -Headers $headers -ContentType "application/json" -Body '{"schedule": "Current Version"}'
+}
 
 $contentHeaders = $headers.Clone()
 $contentHeaders["If-Match"] = "*"

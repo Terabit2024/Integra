@@ -107,7 +107,13 @@
             Clustered = true;
         }
         key(Status; Status) { }
+        key(ExtDocNo; "External Document No.") { }
     }
+
+    trigger OnInsert()
+    begin
+        CheckDuplicateExternalDocNo();
+    end;
 
     trigger OnDelete()
     var
@@ -115,5 +121,28 @@
     begin
         InboxLine.SetRange("Document Entry No.", Rec."Entry No.");
         InboxLine.DeleteAll();
+    end;
+
+    var
+        DuplicateExtDocInboxErr: Label 'An inbox order with External Document No. %1 already exists (Entry No. %2, Status %3).', Comment = '%1 = external document no., %2 = entry no., %3 = status';
+        DuplicateExtDocOrderErr: Label 'A sales order with External Document No. %1 already exists (Order %2).', Comment = '%1 = external document no., %2 = sales order no.';
+
+    local procedure CheckDuplicateExternalDocNo()
+    var
+        Inbox: Record "Integra Sales Order Inbox";
+        SalesHeader: Record "Sales Header";
+    begin
+        if Rec."External Document No." = '' then
+            exit;
+
+        Inbox.SetRange("External Document No.", Rec."External Document No.");
+        Inbox.SetFilter("Entry No.", '<>%1', Rec."Entry No.");
+        if Inbox.FindFirst() then
+            Error(DuplicateExtDocInboxErr, Rec."External Document No.", Inbox."Entry No.", Inbox.Status);
+
+        SalesHeader.SetRange("Document Type", SalesHeader."Document Type"::Order);
+        SalesHeader.SetRange("External Document No.", Rec."External Document No.");
+        if SalesHeader.FindFirst() then
+            Error(DuplicateExtDocOrderErr, Rec."External Document No.", SalesHeader."No.");
     end;
 }

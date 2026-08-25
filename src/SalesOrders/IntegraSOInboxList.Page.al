@@ -46,6 +46,10 @@
                 {
                     ApplicationArea = All;
                 }
+                field(Salesperson; Rec.Salesperson)
+                {
+                    ApplicationArea = All;
+                }
                 field("Created Sales Order No."; Rec."Created Sales Order No.")
                 {
                     ApplicationArea = All;
@@ -71,7 +75,7 @@
                 Caption = 'Process';
                 ApplicationArea = All;
                 Image = Process;
-                ToolTip = 'Create the sales order for the selected inbox entry. The customer is created if it does not exist; items must already exist.';
+                ToolTip = 'Create the sales order for the selected inbox entry. The customer is created if it does not exist; items are matched by No. 2 and must already exist.';
 
                 trigger OnAction()
                 var

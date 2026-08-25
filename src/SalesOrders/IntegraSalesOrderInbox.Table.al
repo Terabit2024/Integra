@@ -74,6 +74,10 @@
         {
             Caption = 'Salesperson Code';
         }
+        field(35; Salesperson; Text[50])
+        {
+            Caption = 'Salesperson';
+        }
         field(40; Status; Enum "Integra SO Inbox Status")
         {
             Caption = 'Status';

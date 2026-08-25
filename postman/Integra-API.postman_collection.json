@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Integra BC API",
-    "description": "Testim i Integra Sales Orders API (Business Central Cloud Sandbox).\n\nPara perdorimit vendos vlerat te Variables:\n- clientId / clientSecret: nga App Registration ne Microsoft Entra\n- tenantId dhe environment jane te paravendosura\n\nRradha e testimit: 1 -> 2 -> 3 -> 4. Token-i merret automatikisht.",
+    "description": "Integra Sales Orders API (Business Central Cloud).\n\nSetup (Variables):\n- clientId / clientSecret: from the App Registration in Microsoft Entra\n- tenantId and environment are pre-set\n- companyId: run '1. Get Companies' once and it is set automatically\n\nThe OAuth token is fetched automatically before every request.\n\nHOW THE INTEGRATION WORKS (for the external developer):\nSending an order is TWO HTTP calls:\n1) POST /salesOrders (deep insert: header + lines in one JSON body) -> returns 201 Created with the order id.\n2) POST /salesOrders({id})/Microsoft.NAV.process -> processes the order immediately and returns 200 with the final result:\n   - status = 'Processed' and createdSalesOrderNo = the created BC Sales Order number, OR\n   - status = 'Error' and errorMessage = the reason (e.g. item No. 2 not found, salesperson name not found).\n\nField notes:\n- lines[].itemNo must match the item's 'No. 2' field in Business Central (NOT the internal item No.). If no item has that No. 2, processing fails with an error listing the numbers that did not match.\n- salesperson is the salesperson's NAME as free text; during processing it is matched against the Salespeople/Purchasers table to find the salesperson code. If no name matches, processing fails with an error.\n\nThe request '2. Create + Process Sales Order' below does both calls in one click: its test script calls Microsoft.NAV.process automatically right after the 201 and shows the final result (status / createdSalesOrderNo / errorMessage) in the Test Results and Console.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -67,7 +67,7 @@
               "const json = pm.response.json();",
               "if (json.value && json.value.length > 0) {",
               "    pm.collectionVariables.set('companyId', json.value[0].id);",
-              "    console.log('companyId u vendos automatikisht:', json.value[0].id, '(' + json.value[0].name + ')');",
+              "    console.log('companyId set automatically:', json.value[0].id, '(' + json.value[0].name + ')');",
               "}"
             ]
           }
@@ -80,22 +80,49 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v2.0", "companies"]
         },
-        "description": "Merr listen e kompanive dhe vendos automatikisht companyId (te paren). Nese do nje kompani tjeter, kopjoje id-ne e saj te Variables > companyId."
+        "description": "One-time setup: fetches the list of companies and automatically stores the first company's id in the companyId variable. If you need a different company, copy its id into Variables > companyId."
       }
     },
     {
-      "name": "2. Create Sales Order (deep insert)",
+      "name": "2. Create + Process Sales Order",
       "event": [
         {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "if (pm.response.code === 201) {",
-              "    const json = pm.response.json();",
-              "    pm.collectionVariables.set('orderId', json.id);",
-              "    console.log('orderId u ruajt:', json.id, '| entryNo:', json.entryNo, '| status:', json.status);",
-              "}"
+              "// Step 1 result: the deep insert must return 201 Created.",
+              "pm.test('Order created in inbox (201)', () => pm.response.to.have.status(201));",
+              "if (pm.response.code !== 201) {",
+              "    console.error('Create failed:', pm.response.text());",
+              "    return;",
+              "}",
+              "const created = pm.response.json();",
+              "pm.collectionVariables.set('orderId', created.id);",
+              "console.log('Inbox order created. id:', created.id, '| entryNo:', created.entryNo);",
+              "",
+              "// Step 2: process the order immediately (same call the external system must make).",
+              "const processUrl = pm.variables.replaceIn('{{baseUrl}}')",
+              "    + '/api/integra/integration/v1.0/companies(' + pm.collectionVariables.get('companyId') + ')/salesOrders(' + created.id + ')/Microsoft.NAV.process';",
+              "pm.sendRequest({",
+              "    url: processUrl,",
+              "    method: 'POST',",
+              "    header: {",
+              "        'Content-Type': 'application/json',",
+              "        'Authorization': 'Bearer ' + pm.collectionVariables.get('accessToken')",
+              "    },",
+              "    body: { mode: 'raw', raw: '{}' }",
+              "}, (err, res) => {",
+              "    if (err) { console.error('Process call error:', err); return; }",
+              "    const result = res.json();",
+              "    console.log('Process result:', JSON.stringify(result, null, 2));",
+              "    pm.test('Order processed: status = ' + result.status",
+              "        + (result.status === 'Processed'",
+              "            ? ' | Sales Order: ' + result.createdSalesOrderNo",
+              "            : ' | Error: ' + result.errorMessage), () => {",
+              "        pm.expect(result.status).to.eql('Processed');",
+              "    });",
+              "});"
             ]
           }
         }
@@ -105,45 +132,14 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n    \"customerNo\": \"CUC-000030\",\n    \"customerName\": \"Longevity Peptides\",\n    \"address\": \"13402 SW 122nd Ave\",\n    \"city\": \"Tigard\",\n    \"countryRegionCode\": \"US\",\n    \"phoneNo\": \"+15033204120\",\n    \"email\": \"longevitypeptides@gmail.com\",\n    \"orderDate\": \"2026-08-04\",\n    \"postingDate\": \"2026-08-05\",\n    \"documentDate\": \"2026-08-05\",\n    \"externalDocumentNo\": \"2883\",\n    \"salespersonCode\": \"AG006\",\n    \"lines\": [\n        { \"itemNo\": \"DP00022\", \"locationCode\": \"200-MAINWA\", \"quantity\": 2, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 105.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00005\", \"locationCode\": \"200-MAINWA\", \"quantity\": 2, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 85.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00004\", \"locationCode\": \"200-MAINWA\", \"quantity\": 3, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 260.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00014\", \"locationCode\": \"200-MAINWA\", \"quantity\": 3, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 255.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00032\", \"locationCode\": \"200-MAINWA\", \"quantity\": 6, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 90.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00009\", \"locationCode\": \"200-MAINWA\", \"quantity\": 2, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 180.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00008\", \"locationCode\": \"200-MAINWA\", \"quantity\": 4, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 135.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00010\", \"locationCode\": \"200-MAINWA\", \"quantity\": 3, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 290.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00028\", \"locationCode\": \"200-MAINWA\", \"quantity\": 5, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 50.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00024\", \"locationCode\": \"200-MAINWA\", \"quantity\": 1, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 140.00, \"lineDiscountPercent\": 11 }\n    ]\n}"
+          "raw": "{\n    \"customerNo\": \"CUC-000030\",\n    \"customerName\": \"Longevity Peptides\",\n    \"address\": \"13402 SW 122nd Ave\",\n    \"city\": \"Tigard\",\n    \"countryRegionCode\": \"US\",\n    \"phoneNo\": \"+15033204120\",\n    \"email\": \"longevitypeptides@gmail.com\",\n    \"orderDate\": \"2026-08-04\",\n    \"postingDate\": \"2026-08-05\",\n    \"documentDate\": \"2026-08-05\",\n    \"externalDocumentNo\": \"2883\",\n    \"salesperson\": \"Agron Gashi\",\n    \"lines\": [\n        { \"itemNo\": \"DP00022\", \"locationCode\": \"200-MAINWA\", \"quantity\": 2, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 105.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00005\", \"locationCode\": \"200-MAINWA\", \"quantity\": 2, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 85.00, \"lineDiscountPercent\": 11 },\n        { \"itemNo\": \"DP00004\", \"locationCode\": \"200-MAINWA\", \"quantity\": 3, \"unitOfMeasureCode\": \"BOX\", \"unitPrice\": 260.00, \"lineDiscountPercent\": 11 }\n    ]\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/integra/integration/v1.0/companies({{companyId}})/salesOrders",
           "host": ["{{baseUrl}}"],
           "path": ["api", "integra", "integration", "v1.0", "companies({{companyId}})", "salesOrders"]
         },
-        "description": "Krijon nje porosi ne Integra Sales Order Inbox me header + rreshta ne nje kerkese. Pergjigja 201 Created; id ruhet automatikisht te orderId."
-      }
-    },
-    {
-      "name": "3. Process Sales Order",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "body": { "mode": "raw", "raw": "{}" },
-        "url": {
-          "raw": "{{baseUrl}}/api/integra/integration/v1.0/companies({{companyId}})/salesOrders({{orderId}})/Microsoft.NAV.process",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "integra", "integration", "v1.0", "companies({{companyId}})", "salesOrders({{orderId}})", "Microsoft.NAV.process"]
-        },
-        "description": "Therret aksionin 'process' qe e kthen porosine nga inbox ne Sales Order real ne BC."
-      }
-    },
-    {
-      "name": "4. Get Sales Orders (kontrollo statusin)",
-      "request": {
-        "method": "GET",
-        "url": {
-          "raw": "{{baseUrl}}/api/integra/integration/v1.0/companies({{companyId}})/salesOrders?$expand=lines&$orderby=entryNo desc&$top=5",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "integra", "integration", "v1.0", "companies({{companyId}})", "salesOrders"],
-          "query": [
-            { "key": "$expand", "value": "lines" },
-            { "key": "$orderby", "value": "entryNo desc" },
-            { "key": "$top", "value": "5" }
-          ]
-        },
-        "description": "Liston 5 porosite e fundit me rreshtat, statusin, errorMessage dhe createdSalesOrderNo."
+        "description": "THE single end-to-end example for the external system.\n\nCall 1 (this request): POST the order (header + lines) to .../salesOrders -> 201 Created.\nCall 2 (done automatically by the test script): POST .../salesOrders({id})/Microsoft.NAV.process with body {} -> 200 with the final result.\n\nThe process response contains:\n- status: 'Processed' or 'Error'\n- createdSalesOrderNo: the Business Central Sales Order number (when Processed)\n- errorMessage: the reason for failure (when Error), e.g. items whose No. 2 was not found, or a salesperson name that does not exist.\n\nIMPORTANT for the sender:\n- itemNo = the item's 'No. 2' in Business Central, not the internal item number.\n- salesperson = the salesperson's full NAME exactly as registered in BC; it is converted to the salesperson code during processing.\n\nSee the Test Results tab / Console (View > Show Postman Console) for the final outcome."
       }
     }
   ]

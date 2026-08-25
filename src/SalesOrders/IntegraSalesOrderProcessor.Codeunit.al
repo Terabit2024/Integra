@@ -12,7 +12,8 @@
 
     var
         NoLinesErr: Label 'The inbox order has no lines.';
-        MissingItemsErr: Label 'The following items do not exist in the system: %1. The items must be created manually before this order can be processed.', Comment = '%1 = comma-separated list of item numbers';
+        MissingItemsErr: Label 'No item with No. 2 matching the following numbers exists in the system: %1. The items must be created manually (with No. 2 filled in) before this order can be processed.', Comment = '%1 = comma-separated list of item numbers';
+        SalespersonNotFoundErr: Label 'No salesperson with the name %1 exists in the Salespeople/Purchasers table.', Comment = '%1 = salesperson name';
         AlreadyProcessedErr: Label 'Inbox entry %1 is already processed (Sales Order %2).', Comment = '%1 = entry no., %2 = sales order no.';
 
     procedure ProcessAllPending()
@@ -76,8 +77,11 @@
             SalesHeader.Validate("Document Date", Inbox."Document Date");
         if Inbox."External Document No." <> '' then
             SalesHeader.Validate("External Document No.", Inbox."External Document No.");
-        if Inbox."Salesperson Code" <> '' then
-            SalesHeader.Validate("Salesperson Code", Inbox."Salesperson Code");
+        if Inbox.Salesperson <> '' then
+            SalesHeader.Validate("Salesperson Code", GetSalespersonCode(Inbox.Salesperson))
+        else
+            if Inbox."Salesperson Code" <> '' then
+                SalesHeader.Validate("Salesperson Code", Inbox."Salesperson Code");
         SalesHeader.Modify(true);
 
         InboxLine.FindSet();
@@ -88,7 +92,7 @@
             SalesLine."Document No." := SalesHeader."No.";
             SalesLine."Line No." := LineNo;
             SalesLine.Validate(Type, SalesLine.Type::Item);
-            SalesLine.Validate("No.", InboxLine."Item No.");
+            SalesLine.Validate("No.", GetItemNoByNo2(InboxLine."Item No."));
             if InboxLine."Location Code" <> '' then
                 SalesLine.Validate("Location Code", InboxLine."Location Code");
             if InboxLine."Unit of Measure Code" <> '' then
@@ -117,7 +121,9 @@
         InboxLine.SetRange("Document Entry No.", Inbox."Entry No.");
         InboxLine.FindSet();
         repeat
-            if not Item.Get(InboxLine."Item No.") then begin
+            Item.Reset();
+            Item.SetRange("No. 2", InboxLine."Item No.");
+            if Item.IsEmpty() then begin
                 if MissingItems.Length() > 0 then
                     MissingItems.Append(', ');
                 MissingItems.Append(InboxLine."Item No.");
@@ -126,6 +132,26 @@
 
         if MissingItems.Length() > 0 then
             Error(MissingItemsErr, MissingItems.ToText());
+    end;
+
+    local procedure GetItemNoByNo2(ExternalItemNo: Code[20]): Code[20]
+    var
+        Item: Record Item;
+    begin
+        Item.SetRange("No. 2", ExternalItemNo);
+        if not Item.FindFirst() then
+            Error(MissingItemsErr, ExternalItemNo);
+        exit(Item."No.");
+    end;
+
+    local procedure GetSalespersonCode(SalespersonName: Text[50]): Code[20]
+    var
+        Salesperson: Record "Salesperson/Purchaser";
+    begin
+        Salesperson.SetRange(Name, SalespersonName);
+        if not Salesperson.FindFirst() then
+            Error(SalespersonNotFoundErr, SalespersonName);
+        exit(Salesperson.Code);
     end;
 
     local procedure GetOrCreateCustomer(Inbox: Record "Integra Sales Order Inbox"): Code[20]

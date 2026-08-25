@@ -48,7 +48,7 @@
     { "key": "tenantId", "value": "55859367-4aad-4e73-8ba9-d1d0be00d1bb" },
     { "key": "environment", "value": "Sandbox" },
     { "key": "baseUrl", "value": "https://api.businesscentral.dynamics.com/v2.0/{{tenantId}}/{{environment}}" },
-    { "key": "clientId", "value": "" },
+    { "key": "clientId", "value": "e6d3521f-e2ec-4f64-9236-01d27d5765b4" },
     { "key": "clientSecret", "value": "" },
     { "key": "companyId", "value": "" },
     { "key": "orderId", "value": "" },

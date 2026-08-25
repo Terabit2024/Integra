@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Cloud Sandbox (rekomandohet per zhvillim)",
+      "type": "al",
+      "request": "launch",
+      "environmentType": "Sandbox",
+      "environmentName": "Sandbox",
+      "tenant": "55859367-4aad-4e73-8ba9-d1d0be00d1bb",
+      "startupObjectId": 22,
+      "startupObjectType": "Page",
+      "breakOnError": "All",
+      "launchBrowser": true,
+      "usePublicURLFromServer": true
+    },
+    {
+      "name": "Cloud Production (vetem publikim si PTE)",
+      "type": "al",
+      "request": "launch",
+      "environmentType": "Production",
+      "environmentName": "Production",
+      "tenant": "55859367-4aad-4e73-8ba9-d1d0be00d1bb",
+      "startupObjectId": 22,
+      "startupObjectType": "Page",
+      "launchBrowser": true,
+      "usePublicURLFromServer": true
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+# Paketat e kompiluara (por jo simbolet ne .alpackages)
+/*.app
+
+# File pune te AL/VS Code
+.vscode/.alcache/
+.snapshots/
+.altestrunner/
+rad.json
+*.g.xlf
+launch.json.backup

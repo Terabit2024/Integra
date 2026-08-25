@@ -21,11 +21,14 @@ jobs:
         run: |
           # Version i pin-uar (i njejti qe perdoret ne zhvillim lokal) - paketa universale me bin/win32
           $vsixUrl = "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-dynamics-smb/vsextensions/al/17.0.2273547/vspackage"
-          Invoke-WebRequest -Uri $vsixUrl -OutFile al.vsix -MaximumRetryCount 3 -RetryIntervalSec 10
-          Expand-Archive -Path al.vsix -DestinationPath alext -Force
-          $alc = Get-ChildItem alext -Recurse -Filter alc.exe | Select-Object -First 1
+          # Shpaketimi behet JASHTE workspace-it qe template-.al te VSIX te mos hyjne ne kompilim
+          $vsix = Join-Path $env:RUNNER_TEMP "al.vsix"
+          $dest = Join-Path $env:RUNNER_TEMP "alext"
+          Invoke-WebRequest -Uri $vsixUrl -OutFile $vsix -MaximumRetryCount 3 -RetryIntervalSec 10
+          Expand-Archive -Path $vsix -DestinationPath $dest -Force
+          $alc = Get-ChildItem $dest -Recurse -Filter alc.exe | Select-Object -First 1
           if (-not $alc) {
-              Get-ChildItem alext -Recurse -Directory | Select-Object -ExpandProperty FullName
+              Get-ChildItem $dest -Recurse -Directory | Select-Object -ExpandProperty FullName
               throw "alc.exe nuk u gjet ne VSIX"
           }
           "ALC_PATH=$($alc.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8

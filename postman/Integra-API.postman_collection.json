@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Integra BC API",
-    "description": "Integra Sales Orders API (Business Central Cloud, environment: Production, company: My Company).\n\nSetup (Variables):\n- tenantId, clientId, clientSecret, environment (Production) and companyName (My Company) are all pre-set — nothing to configure, just import and send.\n- A 401 'The credentials provided are incorrect' means the clientSecret has expired or been rotated: paste the new value from the Microsoft Entra App Registration (collection > Variables > clientSecret > Save).\n\nThe OAuth token is fetched automatically, and the company id for 'My Company' is resolved automatically in the background before the first request. No separate 'get companies' call is needed.\n\nHOW THE INTEGRATION WORKS (for the external developer):\nSending an order is TWO HTTP calls:\n1) POST /salesOrders (deep insert: header + salesOrderLines in one JSON body) -> returns 201 Created with the order id.\n2) POST /salesOrders({id})/Microsoft.NAV.process -> processes the order immediately and returns 200 with the final result:\n   - status = 'Processed' and createdSalesOrderNo = the created BC Sales Order number, OR\n   - status = 'Error' and errorMessage = the reason (e.g. item No. 2 not found, salesperson name not found).\n\nField notes:\n- salesOrderLines[].itemNo must match the item's 'No. 2' field in Business Central (NOT the internal item No.). If no item has that No. 2, processing fails with an error listing the numbers that did not match.\n- salesperson is the salesperson's NAME as free text; during processing it is matched against the Salespeople/Purchasers table to find the salesperson code. If no name matches, processing fails with an error.\n- externalDocumentNo must be UNIQUE: if an order with the same number already exists (in the inbox or as a sales order in BC), the create call (call 1) is rejected immediately with a 400 error saying which entry/order already has it. Sending the same order twice is therefore safe — the second attempt fails instead of creating a duplicate.\n\nThe single request below does both calls in one click: its test script calls Microsoft.NAV.process automatically right after the 201 and shows the final result (status / createdSalesOrderNo / errorMessage) in the Test Results and Console.",
+    "description": "Integra Sales Orders API (Business Central Cloud, environment: Production, company: My Company).\n\nSetup (Variables):\n- tenantId, clientId, clientSecret, environment (Production) and companyName (My Company) are all pre-set — nothing to configure, just import and send.\n- A 401 'The credentials provided are incorrect' means the clientSecret has expired or been rotated: paste the new value from the Microsoft Entra App Registration (collection > Variables > clientSecret > Save).\n\nThe OAuth token is fetched automatically, and the company id for 'My Company' is resolved automatically in the background before the first request. No separate 'get companies' call is needed.\n\nHOW THE INTEGRATION WORKS (for the external developer):\nSending an order is THREE HTTP calls:\n1) POST /salesOrders (deep insert: header + salesOrderLines in one JSON body) -> returns 201 Created with the order id.\n2) POST /salesOrders({id})/Microsoft.NAV.process -> processes the order immediately; returns 200 with an EMPTY body.\n3) GET /salesOrders({id}) -> returns the final result:\n   - status = 'Processed' and createdSalesOrderNo = the created BC Sales Order number, OR\n   - status = 'Error' and errorMessage = the reason (e.g. item No. 2 not found, salesperson name not found).\n\nField notes:\n- salesOrderLines[].itemNo must match the item's 'No. 2' field in Business Central (NOT the internal item No.). If no item has that No. 2, processing fails with an error listing the numbers that did not match.\n- salesperson is the salesperson's NAME as free text; during processing it is matched against the Salespeople/Purchasers table to find the salesperson code. If no name matches, processing fails with an error.\n- externalDocumentNo must be UNIQUE: if an order with the same number already exists (in the inbox or as a sales order in BC), the create call (call 1) is rejected immediately with a 400 error saying which entry/order already has it. Sending the same order twice is therefore safe — the second attempt fails instead of creating a duplicate.\n\nThe single request below does all three calls in one click: its test script calls Microsoft.NAV.process right after the 201, then fetches the final state with a GET and shows the result (status / createdSalesOrderNo / errorMessage) in the Test Results and Console.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -113,25 +113,28 @@
               "console.log('Inbox order created. id:', created.id, '| entryNo:', created.entryNo);",
               "",
               "// Step 2: process the order immediately (same call the external system must make).",
-              "const processUrl = pm.variables.replaceIn('{{baseUrl}}')",
-              "    + '/api/integra/integration/v1.0/companies(' + pm.collectionVariables.get('companyId') + ')/salesOrders(' + created.id + ')/Microsoft.NAV.process';",
+              "const orderUrl = pm.variables.replaceIn('{{baseUrl}}')",
+              "    + '/api/integra/integration/v1.0/companies(' + pm.collectionVariables.get('companyId') + ')/salesOrders(' + created.id + ')';",
+              "const authHeader = { 'Authorization': 'Bearer ' + pm.collectionVariables.get('accessToken') };",
               "pm.sendRequest({",
-              "    url: processUrl,",
+              "    url: orderUrl + '/Microsoft.NAV.process',",
               "    method: 'POST',",
-              "    header: {",
-              "        'Content-Type': 'application/json',",
-              "        'Authorization': 'Bearer ' + pm.collectionVariables.get('accessToken')",
-              "    },",
+              "    header: Object.assign({ 'Content-Type': 'application/json' }, authHeader),",
               "    body: { mode: 'raw', raw: '{}' }",
               "}, (err, res) => {",
               "    if (err) { console.error('Process call error:', err); return; }",
-              "    const result = res.json();",
-              "    console.log('Process result:', JSON.stringify(result, null, 2));",
-              "    pm.test('Order processed: status = ' + result.status",
-              "        + (result.status === 'Processed'",
-              "            ? ' | Sales Order: ' + result.createdSalesOrderNo",
-              "            : ' | Error: ' + result.errorMessage), () => {",
-              "        pm.expect(result.status).to.eql('Processed');",
+              "    console.log('Process call returned HTTP', res.code);",
+              "    // Step 3: BC returns the process action with an EMPTY body, so fetch the final state with a GET.",
+              "    pm.sendRequest({ url: orderUrl, method: 'GET', header: authHeader }, (err2, res2) => {",
+              "        if (err2) { console.error('Result fetch error:', err2); return; }",
+              "        const result = res2.json();",
+              "        console.log('Final result:', JSON.stringify(result, null, 2));",
+              "        pm.test('Order processed: status = ' + result.status",
+              "            + (result.status === 'Processed'",
+              "                ? ' | Sales Order: ' + result.createdSalesOrderNo",
+              "                : ' | Error: ' + result.errorMessage), () => {",
+              "            pm.expect(result.status).to.eql('Processed');",
+              "        });",
               "    });",
               "});"
             ]
@@ -150,7 +153,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "integra", "integration", "v1.0", "companies({{companyId}})", "salesOrders"]
         },
-        "description": "THE single end-to-end example for the external system (environment Production, company My Company — resolved automatically, no manual company setup).\n\nCall 1 (this request): POST the order (header + salesOrderLines) to .../salesOrders -> 201 Created.\nCall 2 (done automatically by the test script): POST .../salesOrders({id})/Microsoft.NAV.process with body {} -> 200 with the final result.\n\nThe process response contains:\n- status: 'Processed' or 'Error'\n- createdSalesOrderNo: the Business Central Sales Order number (when Processed)\n- errorMessage: the reason for failure (when Error), e.g. items whose No. 2 was not found, or a salesperson name that does not exist.\n\nIMPORTANT for the sender:\n- itemNo = the item's 'No. 2' in Business Central, not the internal item number.\n- salesperson = the salesperson's full NAME exactly as registered in BC; it is converted to the salesperson code during processing.\n\nSee the Test Results tab / Console (View > Show Postman Console) for the final outcome."
+        "description": "THE single end-to-end example for the external system (environment Production, company My Company — resolved automatically, no manual company setup).\n\nCall 1 (this request): POST the order (header + salesOrderLines) to .../salesOrders -> 201 Created.\nCall 2 (done automatically by the test script): POST .../salesOrders({id})/Microsoft.NAV.process with body {} -> 200 with an EMPTY body.\nCall 3 (also automatic): GET .../salesOrders({id}) -> the final result.\n\nThe final result contains:\n- status: 'Processed' or 'Error'\n- createdSalesOrderNo: the Business Central Sales Order number (when Processed)\n- errorMessage: the reason for failure (when Error), e.g. items whose No. 2 was not found, or a salesperson name that does not exist.\n\nIMPORTANT for the sender:\n- itemNo = the item's 'No. 2' in Business Central, not the internal item number.\n- salesperson = the salesperson's full NAME exactly as registered in BC; it is converted to the salesperson code during processing.\n\nSee the Test Results tab / Console (View > Show Postman Console) for the final outcome."
       }
     }
   ]

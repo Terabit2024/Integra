@@ -40,7 +40,7 @@ jobs:
           BC_CLIENT_ID: ${{ secrets.BC_CLIENT_ID }}
           BC_CLIENT_SECRET: ${{ secrets.BC_CLIENT_SECRET }}
         run: |
-          .\scripts\Publish-Production.ps1 -BuildNumber ${{ github.run_number }}
+          .\scripts\Publish-Production.ps1 -BuildNumber ${{ github.run_number }} -CompanyName "My Company"
 
       - name: Upload .app artifact
         if: always()

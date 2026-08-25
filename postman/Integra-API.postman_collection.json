@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Integra BC API",
-    "description": "Integra Sales Orders API (Business Central Cloud).\n\nSetup (Variables):\n- clientId / clientSecret: from the App Registration in Microsoft Entra\n- tenantId and environment are pre-set\n- companyId: run '1. Get Companies' once and it is set automatically\n\nThe OAuth token is fetched automatically before every request.\n\nHOW THE INTEGRATION WORKS (for the external developer):\nSending an order is TWO HTTP calls:\n1) POST /salesOrders (deep insert: header + lines in one JSON body) -> returns 201 Created with the order id.\n2) POST /salesOrders({id})/Microsoft.NAV.process -> processes the order immediately and returns 200 with the final result:\n   - status = 'Processed' and createdSalesOrderNo = the created BC Sales Order number, OR\n   - status = 'Error' and errorMessage = the reason (e.g. item No. 2 not found, salesperson name not found).\n\nField notes:\n- lines[].itemNo must match the item's 'No. 2' field in Business Central (NOT the internal item No.). If no item has that No. 2, processing fails with an error listing the numbers that did not match.\n- salesperson is the salesperson's NAME as free text; during processing it is matched against the Salespeople/Purchasers table to find the salesperson code. If no name matches, processing fails with an error.\n\nThe request '2. Create + Process Sales Order' below does both calls in one click: its test script calls Microsoft.NAV.process automatically right after the 201 and shows the final result (status / createdSalesOrderNo / errorMessage) in the Test Results and Console.",
+    "description": "Integra Sales Orders API (Business Central Cloud, environment: Production, company: My Company).\n\nSetup (Variables):\n- clientId / clientSecret: from the App Registration in Microsoft Entra\n- tenantId, environment (Production) and companyName (My Company) are pre-set — nothing else to configure.\n\nThe OAuth token is fetched automatically, and the company id for 'My Company' is resolved automatically in the background before the first request. No separate 'get companies' call is needed.\n\nHOW THE INTEGRATION WORKS (for the external developer):\nSending an order is TWO HTTP calls:\n1) POST /salesOrders (deep insert: header + lines in one JSON body) -> returns 201 Created with the order id.\n2) POST /salesOrders({id})/Microsoft.NAV.process -> processes the order immediately and returns 200 with the final result:\n   - status = 'Processed' and createdSalesOrderNo = the created BC Sales Order number, OR\n   - status = 'Error' and errorMessage = the reason (e.g. item No. 2 not found, salesperson name not found).\n\nField notes:\n- lines[].itemNo must match the item's 'No. 2' field in Business Central (NOT the internal item No.). If no item has that No. 2, processing fails with an error listing the numbers that did not match.\n- salesperson is the salesperson's NAME as free text; during processing it is matched against the Salespeople/Purchasers table to find the salesperson code. If no name matches, processing fails with an error.\n\nThe single request below does both calls in one click: its test script calls Microsoft.NAV.process automatically right after the 201 and shows the final result (status / createdSalesOrderNo / errorMessage) in the Test Results and Console.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -14,6 +14,27 @@
       "script": {
         "type": "text/javascript",
         "exec": [
+          "// 1) Resolve the company id for the fixed company (companyName) once, then cache it.",
+          "function ensureCompanyId() {",
+          "    if (pm.collectionVariables.get('companyId')) return;",
+          "    const companyName = pm.collectionVariables.get('companyName');",
+          "    pm.sendRequest({",
+          "        url: pm.variables.replaceIn('{{baseUrl}}') + \"/api/v2.0/companies?$filter=name eq '\" + companyName + \"'\",",
+          "        method: 'GET',",
+          "        header: { 'Authorization': 'Bearer ' + pm.collectionVariables.get('accessToken') }",
+          "    }, (err, res) => {",
+          "        if (err) { console.error('Company lookup error:', err); return; }",
+          "        const json = res.json();",
+          "        if (json.value && json.value.length > 0) {",
+          "            pm.collectionVariables.set('companyId', json.value[0].id);",
+          "            console.log('companyId resolved for', companyName + ':', json.value[0].id);",
+          "        } else {",
+          "            console.error('Company not found:', companyName, JSON.stringify(json));",
+          "        }",
+          "    });",
+          "}",
+          "",
+          "// 2) Fetch/refresh the OAuth token automatically, then resolve the company id.",
           "const expiry = pm.collectionVariables.get('tokenExpiry');",
           "if (!pm.collectionVariables.get('accessToken') || !expiry || Date.now() > Number(expiry)) {",
           "    pm.sendRequest({",
@@ -35,10 +56,13 @@
           "        if (json.access_token) {",
           "            pm.collectionVariables.set('accessToken', json.access_token);",
           "            pm.collectionVariables.set('tokenExpiry', Date.now() + (json.expires_in - 60) * 1000);",
+          "            ensureCompanyId();",
           "        } else {",
           "            console.error('Token response:', JSON.stringify(json));",
           "        }",
           "    });",
+          "} else {",
+          "    ensureCompanyId();",
           "}"
         ]
       }
@@ -46,7 +70,8 @@
   ],
   "variable": [
     { "key": "tenantId", "value": "55859367-4aad-4e73-8ba9-d1d0be00d1bb" },
-    { "key": "environment", "value": "Sandbox" },
+    { "key": "environment", "value": "Production" },
+    { "key": "companyName", "value": "My Company" },
     { "key": "baseUrl", "value": "https://api.businesscentral.dynamics.com/v2.0/{{tenantId}}/{{environment}}" },
     { "key": "clientId", "value": "e6d3521f-e2ec-4f64-9236-01d27d5765b4" },
     { "key": "clientSecret", "value": "" },
@@ -57,34 +82,7 @@
   ],
   "item": [
     {
-      "name": "1. Get Companies",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const json = pm.response.json();",
-              "if (json.value && json.value.length > 0) {",
-              "    pm.collectionVariables.set('companyId', json.value[0].id);",
-              "    console.log('companyId set automatically:', json.value[0].id, '(' + json.value[0].name + ')');",
-              "}"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "url": {
-          "raw": "{{baseUrl}}/api/v2.0/companies",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v2.0", "companies"]
-        },
-        "description": "One-time setup: fetches the list of companies and automatically stores the first company's id in the companyId variable. If you need a different company, copy its id into Variables > companyId."
-      }
-    },
-    {
-      "name": "2. Create + Process Sales Order",
+      "name": "Create + Process Sales Order",
       "event": [
         {
           "listen": "test",
@@ -139,7 +137,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "integra", "integration", "v1.0", "companies({{companyId}})", "salesOrders"]
         },
-        "description": "THE single end-to-end example for the external system.\n\nCall 1 (this request): POST the order (header + lines) to .../salesOrders -> 201 Created.\nCall 2 (done automatically by the test script): POST .../salesOrders({id})/Microsoft.NAV.process with body {} -> 200 with the final result.\n\nThe process response contains:\n- status: 'Processed' or 'Error'\n- createdSalesOrderNo: the Business Central Sales Order number (when Processed)\n- errorMessage: the reason for failure (when Error), e.g. items whose No. 2 was not found, or a salesperson name that does not exist.\n\nIMPORTANT for the sender:\n- itemNo = the item's 'No. 2' in Business Central, not the internal item number.\n- salesperson = the salesperson's full NAME exactly as registered in BC; it is converted to the salesperson code during processing.\n\nSee the Test Results tab / Console (View > Show Postman Console) for the final outcome."
+        "description": "THE single end-to-end example for the external system (environment Production, company My Company — resolved automatically, no manual company setup).\n\nCall 1 (this request): POST the order (header + lines) to .../salesOrders -> 201 Created.\nCall 2 (done automatically by the test script): POST .../salesOrders({id})/Microsoft.NAV.process with body {} -> 200 with the final result.\n\nThe process response contains:\n- status: 'Processed' or 'Error'\n- createdSalesOrderNo: the Business Central Sales Order number (when Processed)\n- errorMessage: the reason for failure (when Error), e.g. items whose No. 2 was not found, or a salesperson name that does not exist.\n\nIMPORTANT for the sender:\n- itemNo = the item's 'No. 2' in Business Central, not the internal item number.\n- salesperson = the salesperson's full NAME exactly as registered in BC; it is converted to the salesperson code during processing.\n\nSee the Test Results tab / Console (View > Show Postman Console) for the final outcome."
       }
     }
   ]

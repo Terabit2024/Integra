@@ -79,7 +79,10 @@ $upload = Invoke-RestMethod -Method Post -Uri "$autoApi/companies($($company.id)
 
 $contentHeaders = $headers.Clone()
 $contentHeaders["If-Match"] = "*"
-Invoke-RestMethod -Method Patch -Uri "$autoApi/companies($($company.id))/extensionUpload($($upload.systemId))/content" `
+# Perdoret media-link-u qe kthen vete API-ja - URL-ja e ndertuar me dore kthen 404
+$contentUrl = $upload.'content@odata.mediaEditLink'
+if (-not $contentUrl) { $contentUrl = "$autoApi/companies($($company.id))/extensionUpload($($upload.systemId))/content" }
+Invoke-RestMethod -Method Patch -Uri $contentUrl `
     -Headers $contentHeaders -ContentType "application/octet-stream" -InFile $AppFile | Out-Null
 Write-Host "Paketa u ngarkua, deployment-i filloi..."
 

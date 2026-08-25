@@ -5,7 +5,6 @@
     SourceTable = "Integra Sales Order Inbox Line";
     UsageCategory = None;
     ApplicationArea = All;
-    Editable = false;
 
     layout
     {
@@ -16,10 +15,12 @@
                 field("Document Entry No."; Rec."Document Entry No.")
                 {
                     ApplicationArea = All;
+                    Editable = false;
                 }
                 field("Line No."; Rec."Line No.")
                 {
                     ApplicationArea = All;
+                    Editable = false;
                 }
                 field("Item No."; Rec."Item No.")
                 {
@@ -68,5 +69,13 @@
             ItemStyle := 'Standard'
         else
             ItemStyle := 'Unfavorable';
+    end;
+
+    trigger OnAfterGetCurrRecord()
+    var
+        Inbox: Record "Integra Sales Order Inbox";
+    begin
+        if Inbox.Get(Rec."Document Entry No.") then
+            CurrPage.Editable(Inbox.Status <> Inbox.Status::Processed);
     end;
 }

@@ -13,7 +13,7 @@ Rregulla kryesore:
 - `itemNo` në linja duhet të përputhet me **No. 2** të artikullit në BC (jo me No. e brendshëm).
 - `salesperson` është emri i plotë i salesperson-it, saktësisht siç është regjistruar në BC.
 - `externalDocumentNo` duhet të jetë unik — ridërgimi i të njëjtës porosi refuzohet me gabim (mbrojtje nga dublikatat).
-- Hyrjet me gabim mund të fshihen nga lista *Integra Sales Order Inbox* me aksionin **Delete Entry** ose nga API me `DELETE /salesOrders({id})`; hyrjet e procesuara nuk fshihen (ruhen si histori e kontrollit të dublikatave).
+- Hyrjet me gabim ruhen të plota (header + linja) me gabimin në rresht: mund të **editohen** direkt në listë/linja (ose me PATCH nga API) dhe të riprocesohen me *Process*; ose të fshihen me aksionin **Delete Entry** / `DELETE /salesOrders({id})`. Hyrjet e procesuara janë read-only dhe nuk fshihen (ruhen si histori e kontrollit të dublikatave).
 
 ## Struktura
 

@@ -5,7 +5,7 @@
     SourceTable = "Integra Sales Order Inbox";
     UsageCategory = Lists;
     ApplicationArea = All;
-    Editable = false;
+    InsertAllowed = false;
 
     layout
     {
@@ -16,6 +16,7 @@
                 field("Entry No."; Rec."Entry No.")
                 {
                     ApplicationArea = All;
+                    Editable = false;
                 }
                 field(Status; Rec.Status)
                 {
@@ -210,6 +211,11 @@
             else
                 StatusStyle := 'Ambiguous';
         end;
+    end;
+
+    trigger OnAfterGetCurrRecord()
+    begin
+        CurrPage.Editable(Rec.Status <> Rec.Status::Processed);
     end;
 
     local procedure SendErrorNotification()

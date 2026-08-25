@@ -64,4 +64,31 @@
             Clustered = true;
         }
     }
+
+    trigger OnInsert()
+    begin
+        TestHeaderNotProcessed();
+    end;
+
+    trigger OnModify()
+    begin
+        TestHeaderNotProcessed();
+    end;
+
+    trigger OnDelete()
+    begin
+        TestHeaderNotProcessed();
+    end;
+
+    var
+        HeaderProcessedErr: Label 'The lines of inbox entry %1 cannot be changed because the entry is already processed.', Comment = '%1 = document entry no.';
+
+    local procedure TestHeaderNotProcessed()
+    var
+        Inbox: Record "Integra Sales Order Inbox";
+    begin
+        if Inbox.Get(Rec."Document Entry No.") then
+            if Inbox.Status = Inbox.Status::Processed then
+                Error(HeaderProcessedErr, Rec."Document Entry No.");
+    end;
 }

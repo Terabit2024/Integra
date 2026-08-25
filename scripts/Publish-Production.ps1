@@ -89,13 +89,20 @@ $contentUrl = $upload.'extensionContent@odata.mediaEditLink'
 if (-not $contentUrl) { $contentUrl = "$autoApi/companies($($company.id))/extensionUpload($($upload.systemId))/extensionContent" }
 Invoke-RestMethod -Method Patch -Uri $contentUrl `
     -Headers $contentHeaders -ContentType "application/octet-stream" -InFile $AppFile | Out-Null
-Write-Host "Paketa u ngarkua, deployment-i filloi..."
+Write-Host "Paketa u ngarkua."
 
-# 4. Prit statusin
+# Aksioni qe NIS deployment-in - pa kete ngarkimi mbetet i papunuar
+Invoke-RestMethod -Method Post -Uri "$autoApi/companies($($company.id))/extensionUpload($($upload.systemId))/Microsoft.NAV.upload" `
+    -Headers $headers -ContentType "application/json" -Body '{}' | Out-Null
+Write-Host "Deployment-i nisi..."
+
+# 4. Prit statusin - vetem regjistrin e versionit qe sapo ngarkuam (jo statuse te vjetra)
 for ($i = 0; $i -lt 60; $i++) {
     Start-Sleep -Seconds 10
     $statusList = (Invoke-RestMethod -Uri "$autoApi/companies($($company.id))/extensionDeploymentStatus" -Headers $headers).value
-    $status = $statusList | Sort-Object startedOn -Descending | Select-Object -First 1
+    $status = $statusList | Where-Object { $_.appVersion -eq $appJson.version } |
+        Sort-Object startedOn -Descending | Select-Object -First 1
+    if (-not $status) { Write-Host "Duke pritur regjistrin e deployment per v$($appJson.version)..."; continue }
     Write-Host ("[{0:HH:mm:ss}] {1} v{2} -> {3}" -f (Get-Date), $status.name, $status.appVersion, $status.status)
     if ($status.status -eq "Completed") { Write-Host "PUBLIKIMI PERFUNDOI ME SUKSES." -ForegroundColor Green; exit 0 }
     if ($status.status -eq "Failed") {

@@ -1,4 +1,4 @@
-﻿table 50102 "Integra Sales Order Inbox Line"
+﻿table 50202 "Integra Sales Order Inbox Line"
 {
     Caption = 'Integra Sales Order Inbox Line';
     DataClassification = CustomerContent;

@@ -1,4 +1,4 @@
-﻿page 50101 "Integra Integration Setup"
+﻿page 50201 "Integra Integration Setup"
 {
     PageType = Card;
     Caption = 'Integra Integration Setup';

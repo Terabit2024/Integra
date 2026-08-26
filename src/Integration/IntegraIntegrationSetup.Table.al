@@ -1,4 +1,4 @@
-﻿table 50100 "Integra Integration Setup"
+﻿table 50200 "Integra Integration Setup"
 {
     Caption = 'Integra Integration Setup';
     DataClassification = CustomerContent;

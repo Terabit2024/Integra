@@ -1,4 +1,4 @@
-pageextension 50100 "Integra Business Mgr. RC" extends "Business Manager Role Center"
+pageextension 50200 "Integra Business Mgr. RC" extends "Business Manager Role Center"
 {
     actions
     {

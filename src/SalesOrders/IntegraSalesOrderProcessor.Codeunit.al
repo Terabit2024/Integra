@@ -1,4 +1,4 @@
-﻿codeunit 50101 "Integra Sales Order Processor"
+﻿codeunit 50201 "Integra Sales Order Processor"
 {
     TableNo = "Integra Sales Order Inbox";
 

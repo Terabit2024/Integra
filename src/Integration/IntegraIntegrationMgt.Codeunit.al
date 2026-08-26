@@ -1,4 +1,4 @@
-﻿codeunit 50100 "Integra Integration Mgt."
+﻿codeunit 50200 "Integra Integration Mgt."
 {
     var
         SetupMissingErr: Label 'Integration is not enabled. Open the Integra Integration Setup page and configure it first.';

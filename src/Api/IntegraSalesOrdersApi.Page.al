@@ -1,4 +1,4 @@
-﻿page 50102 "Integra Sales Orders API"
+﻿page 50202 "Integra Sales Orders API"
 {
     PageType = API;
     Caption = 'Integra Sales Orders API';

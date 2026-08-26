@@ -1,4 +1,4 @@
-pageextension 50101 "Integra Order Proc. RC" extends "Order Processor Role Center"
+pageextension 50201 "Integra Order Proc. RC" extends "Order Processor Role Center"
 {
     actions
     {

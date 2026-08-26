@@ -1,4 +1,4 @@
-﻿enum 50100 "Integra SO Inbox Status"
+﻿enum 50200 "Integra SO Inbox Status"
 {
     Extensible = false;
 

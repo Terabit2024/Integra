@@ -1,4 +1,4 @@
-﻿page 50105 "Integra SO Inbox Lines"
+﻿page 50205 "Integra SO Inbox Lines"
 {
     PageType = List;
     Caption = 'Integra Sales Order Inbox Lines';
